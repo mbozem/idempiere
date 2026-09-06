@@ -64,6 +64,7 @@ public class WFPopupItem extends Menuitem {
 	public static final int WFPOPUPITEM_DELETENODE = -1;
 	public static final int WFPOPUPITEM_PROPERTIES = -2;
 	public static final int WFPOPUPITEM_ZOOM = -3;
+	public static final int WFPOPUPITEM_ZOOMLINE = -4;
 
 	private int m_AD_Workflow_ID;
 
@@ -92,6 +93,21 @@ public class WFPopupItem extends Menuitem {
 	{
 		super (title);
 		m_line = line;
+		MWFNode node = MWFNode.get(Env.getCtx(), line.getAD_WF_Node_ID());
+		m_AD_Workflow_ID = node.getAD_Workflow_ID();
+	}	//	WFPopupItem
+
+	/**
+	 * 	Transition Action Item
+	 *	@param title title
+	 *	@param line line to act on
+	 *	@param action action to apply (e.g. {@link #WFPOPUPITEM_ZOOMLINE})
+	 */
+	public WFPopupItem (String title, MWFNodeNext line, int action)
+	{
+		super (title);
+		m_line = line;
+		m_AD_WF_NodeTo_ID = action;
 		MWFNode node = MWFNode.get(Env.getCtx(), line.getAD_WF_Node_ID());
 		m_AD_Workflow_ID = node.getAD_Workflow_ID();
 	}	//	WFPopupItem
@@ -154,6 +170,20 @@ public class WFPopupItem extends Menuitem {
 				log.info("Delete Node: " + m_node);
 			m_node.delete(false);
 			wfp.reload(m_AD_Workflow_ID, true);
+		}
+		//	Zoom to Transition
+		else if (m_line != null && m_AD_WF_NodeTo_ID == WFPOPUPITEM_ZOOMLINE)
+		{
+			int AD_Window_ID = MTable.get(Env.getCtx(), MWFNodeNext.Table_ID).getAD_Window_ID();
+			if (AD_Window_ID > 0) {
+				MQuery query = new MQuery();
+				query.setZoomColumnName("AD_WF_NodeNext_ID");
+				query.setZoomTableName("AD_WF_NodeNext");
+				query.setZoomValue(m_line.getAD_WF_NodeNext_ID());
+				query.addRestriction("AD_WF_NodeNext_ID", MQuery.EQUAL, m_line.getAD_WF_NodeNext_ID());
+				query.setRecordCount(1);    //  guess
+				AEnv.zoom(AD_Window_ID, query);
+			}
 		}
 		//	Delete Line
 		else if (m_line != null)

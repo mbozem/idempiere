@@ -16,7 +16,9 @@ import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.Rectangle;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.adempiere.exceptions.AdempiereException;
@@ -208,6 +210,52 @@ public class WFNodeContainer
 	}
 
 	/**
+	 * Order the transitions of a workflow for routing. Connectors with the
+	 * largest column span are attached (and thus routed) first, then the ones
+	 * with the largest row span. The parallel search router avoids already
+	 * routed connectors, so the first connector on a shared corridor keeps its
+	 * straight line - routing the long tunnels first keeps them straight and
+	 * lets the short hops tuck around them. Measured against the real
+	 * orthogonal search router this order produces the fewest segment
+	 * crossings and routing fallbacks; the last two tie-breakers keep the
+	 * order deterministic.
+	 * @param transitions transitions in reading order (the list is not modified)
+	 * @param nodesById all workflow nodes of the workflow by node id
+	 * @return the transitions in routing order
+	 */
+	public static List<MWFNodeNext> inRouteOrder(List<MWFNodeNext> transitions, Map<Integer, MWFNode> nodesById) {
+		List<MWFNodeNext> ordered = new ArrayList<MWFNodeNext>(transitions);
+		ordered.sort((left, right) -> {
+			int c = Integer.compare(span(right, nodesById), span(left, nodesById));
+			if (c == 0)
+				c = Integer.compare(left.getSeqNo(), right.getSeqNo());
+			if (c == 0)
+				c = Integer.compare(left.getAD_WF_NodeNext_ID(), right.getAD_WF_NodeNext_ID());
+			return c;
+		});
+		return ordered;
+	}
+
+	/**
+	 * Routing pressure of a connector: the column span dominates, the row span
+	 * breaks ties between connectors that stay in the same column distance.
+	 * @param edge transition
+	 * @param nodesById workflow nodes by node id
+	 * @return pressure key (larger is routed earlier)
+	 */
+	private static int span(MWFNodeNext edge, Map<Integer, MWFNode> nodesById) {
+		MWFNode node = nodesById.get(edge.getAD_WF_Node_ID());
+		MWFNode next = nodesById.get(edge.getAD_WF_Next_ID());
+		int columnSpan = 0;
+		int rowSpan = 0;
+		if (node != null && next != null) {
+			columnSpan = Math.max(0, next.getXPosition() - node.getXPosition());
+			rowSpan = Math.abs(next.getYPosition() - node.getYPosition());
+		}
+		return columnSpan * 1000 + rowSpan;
+	}
+
+	/**
 	 * Find workflow node widget via row and column
 	 * @param row row #, starting from 1
 	 * @param column column #, starting from 1
@@ -238,12 +286,15 @@ public class WFNodeContainer
 	}	//	findBounds
 
 	/**
-	 * Get dimension of container
+	 * Get dimension of container. The cell matrix is wrapped in the routing
+	 * gutter (filler tile) on all four sides, see WFGraphLayout.MARGIN_X/Y.
 	 * @return dimension
 	 */
 	public Dimension getDimension()
 	{
-		return new Dimension(noOfColumns * WFGraphLayout.COLUMN_WIDTH, Math.max(currentRow, rowCount) * WFGraphLayout.ROW_HEIGHT);
+		return new Dimension(
+				WFGraphLayout.MARGIN_X + noOfColumns * WFGraphLayout.COLUMN_WIDTH + WFGraphLayout.MARGIN_X,
+				WFGraphLayout.MARGIN_Y + Math.max(currentRow, rowCount) * WFGraphLayout.ROW_HEIGHT + WFGraphLayout.MARGIN_Y);
 	}
 
 	/**

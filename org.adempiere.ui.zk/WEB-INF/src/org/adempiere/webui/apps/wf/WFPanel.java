@@ -16,7 +16,10 @@ import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Level;
 
 import org.adempiere.webui.LayoutUtils;
@@ -34,9 +37,6 @@ import org.compiere.util.Env;
 import org.compiere.wf.MWFNode;
 import org.compiere.wf.MWFNodeNext;
 import org.compiere.wf.MWorkflow;
-import org.zkoss.zhtml.Table;
-import org.zkoss.zhtml.Td;
-import org.zkoss.zhtml.Tr;
 import org.zkoss.zk.ui.event.Event;
 import org.zkoss.zk.ui.event.EventListener;
 import org.zkoss.zk.ui.event.Events;
@@ -100,7 +100,8 @@ public class WFPanel extends Borderlayout implements EventListener<Event>, IHelp
 	private Html infoTextPane = new Html();
 	private Div contentPanel = new Div();
 	//
-	private Table table;
+	/** container that holds the workflow graph image and the node overlays */
+	private Div graphPanel;
 		
 	/**
 	 * 	Static Init
@@ -118,8 +119,10 @@ public class WFPanel extends Borderlayout implements EventListener<Event>, IHelp
 		this.setStyle("height: 100%; width: 100%; position: absolute");
 		Center center = new Center();
 		this.appendChild(center);
-		createTable();
-		center.appendChild(table);
+		graphPanel = new Div();
+		// position relative so the per-node overlays can be placed absolutely
+		graphPanel.setStyle("position:relative;");
+		center.appendChild(graphPanel);
 		contentPanel.setStyle("width: 100%; height: 100%;");
 		center.setAutoscroll(true);
 		
@@ -136,14 +139,6 @@ public class WFPanel extends Borderlayout implements EventListener<Event>, IHelp
 		ZKUpdateUtil.setVflex(div, "1");
 		ZKUpdateUtil.setHflex(div, "1");
 	}	//	jbInit
-
-	private void createTable() {
-		table = new Table();
-		table.setDynamicProperty("cellpadding", "0");
-		table.setDynamicProperty("cellspacing", "0");
-		table.setDynamicProperty("border", "none");
-		table.setStyle("margin:0;padding:0");
-	}
 		
 	/**
 	 * 	Dispose
@@ -177,63 +172,67 @@ public class WFPanel extends Borderlayout implements EventListener<Event>, IHelp
 				nodeContainer.addNode(nodes[i]);
 		}
 		
-		//  Add lines
+		//  Add lines (routed longest span first, keeps tunnels and streams straight)
+		Map<Integer, MWFNode> nodesById = new HashMap<Integer, MWFNode>();
 		for (int i = 0; i < nodes.length; i++)
-		{
-			MWFNodeNext[] nexts = nodes[i].getTransitions(Env.getAD_Client_ID(Env.getCtx()));
-			for (int j = 0; j < nexts.length; j++)
-			{
-				nodeContainer.addEdge(nexts[j]);
-			}
-		}
+			nodesById.put(nodes[i].getAD_WF_Node_ID(), nodes[i]);
+		List<MWFNodeNext> transitions = new ArrayList<MWFNodeNext>();
+		for (int i = 0; i < nodes.length; i++)
+			Collections.addAll(transitions, nodes[i].getTransitions(Env.getAD_Client_ID(Env.getCtx())));
+		for (MWFNodeNext edge : WFNodeContainer.inRouteOrder(transitions, nodesById))
+			nodeContainer.addEdge(edge);
 				
-		// render workflow graph as image
+		// render workflow graph as image (supersampled, see WFRenderUtil.RENDER_SCALE)
 		Dimension dimension = nodeContainer.getDimension();
-		BufferedImage bi = new BufferedImage (dimension.width, dimension.height, BufferedImage.TYPE_INT_ARGB);
+		int imageWidth = (int) Math.round(dimension.width * WFRenderUtil.RENDER_SCALE);
+		int imageHeight = (int) Math.round(dimension.height * WFRenderUtil.RENDER_SCALE);
+		BufferedImage bi = new BufferedImage (imageWidth, imageHeight, BufferedImage.TYPE_INT_ARGB);
 		Graphics2D graphics = bi.createGraphics();
+		WFRenderUtil.applyRenderingHints(graphics);
 		nodeContainer.validate(graphics);
-		nodeContainer.paint(graphics);
+		Graphics2D paintGraphics = (Graphics2D) graphics.create();
+		paintGraphics.scale(WFRenderUtil.RENDER_SCALE, WFRenderUtil.RENDER_SCALE);
+		nodeContainer.paint(paintGraphics);
+		paintGraphics.dispose();
+		graphics.dispose();
 
 		try {
+			// The whole workflow is rendered into a single continuous image
+			// (WFRenderUtil.RENDER_SCALE times larger than the logical size to
+			// stay sharp on HiDPI). Tiling it into per-cell <img> parts would
+			// leave visible seams between the tiles in the browser, so the image
+			// is shown once and transparent overlay divs provide the per-node
+			// tooltip and click handling.
+			graphPanel.getChildren().clear();
+			org.zkoss.zul.Image image = new org.zkoss.zul.Image();
+			image.setContent(bi);
+			// display at logical size, the 2x source keeps it sharp on HiDPI displays
+			ZKUpdateUtil.setWidth(image, dimension.width + "px");
+			ZKUpdateUtil.setHeight(image, dimension.height + "px");
+			image.setStyle("display:block;border:none;margin:0;padding:0;");
+			graphPanel.appendChild(image);
+
 			int row = nodeContainer.getRowCount();
 			int maxCol = nodeContainer.getMaxColumnWithNode();
 			for(int i = 0; i < row; i++) {
-				Tr tr = new Tr();
-				table.appendChild(tr);
-				
-				// get image for each node and add to html table
 				for(int c = 0; c < maxCol; c++) {
-					BufferedImage t = new BufferedImage(WFGraphLayout.COLUMN_WIDTH, WFGraphLayout.ROW_HEIGHT, BufferedImage.TYPE_INT_ARGB);
-					Graphics2D tg = t.createGraphics();
-					Td td = new Td();
-					td.setSclass("workflow-panel-table");
-					tr.appendChild(td);
-					
-					int x = c * WFGraphLayout.COLUMN_WIDTH;
-					int y = i * WFGraphLayout.ROW_HEIGHT;
-
-					tg.drawImage(bi.getSubimage(x, y, WFGraphLayout.COLUMN_WIDTH, WFGraphLayout.ROW_HEIGHT), 0, 0, null);
-					org.zkoss.zul.Image image = new org.zkoss.zul.Image();
-					image.setContent(t);
-					td.appendChild(image);
-
 					WFNodeWidget widget = nodeContainer.findWidget(i+1, c+1);
-					if (widget != null)
-					{
-						MWFNode node = widget.getModel();
-						if (node.getHelp(true) != null) {
-							image.setTooltiptext(node.getHelp(true));
-						}
-						image.setAttribute("AD_WF_Node_ID", node.getAD_WF_Node_ID());
-						image.addEventListener(Events.ON_CLICK, this);
-						image.setStyle("cursor:pointer;border:none;margin:0;padding:0;");
-					}
-					else
-					{
-						image.setStyle("border:none;margin:0;padding:0;");
-					}
+					if (widget == null)
+						continue;
 
-					tg.dispose();
+					MWFNode node = widget.getModel();
+					Div overlay = new Div();
+					overlay.setStyle("position:absolute;left:" + (WFGraphLayout.MARGIN_X + c * WFGraphLayout.COLUMN_WIDTH) + "px;"
+							+ "top:" + (WFGraphLayout.MARGIN_Y + i * WFGraphLayout.ROW_HEIGHT) + "px;"
+							+ "width:" + WFGraphLayout.COLUMN_WIDTH + "px;"
+							+ "height:" + WFGraphLayout.ROW_HEIGHT + "px;"
+							+ "cursor:pointer;");
+					if (node.getHelp(true) != null) {
+						overlay.setTooltiptext(node.getHelp(true));
+					}
+					overlay.setAttribute("AD_WF_Node_ID", node.getAD_WF_Node_ID());
+					overlay.addEventListener(Events.ON_CLICK, this);
+					graphPanel.appendChild(overlay);
 				}
 			}
 
