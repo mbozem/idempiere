@@ -29,6 +29,8 @@ import java.awt.font.TextAttribute;
 import java.awt.font.TextLayout;
 import java.text.AttributedCharacterIterator;
 import java.text.AttributedString;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.netbeans.api.visual.widget.LabelWidget;
 import org.netbeans.api.visual.widget.Scene;
@@ -57,31 +59,55 @@ public class MultilineLabelWidget extends LabelWidget {
 		float rwidth = width - (insets.left + insets.right);// + margin.left +
 															// margin.right;
 		Rectangle rec = this.calculateClientArea();
+		gr.setColor(getForeground());
 		gr.setFont(getFont());
 
 		float x = 0.0F;// + margin.left;
-		float y = (float) rec.getY();// + margin.top;
 
 		if (rwidth > 0 && this.getLabel() != null
 				&& this.getLabel().length() > 0) {
+			List<TextLayout> lines = new ArrayList<>();
 			AttributedString as = new AttributedString(this.getLabel());
 			as.addAttribute(TextAttribute.FONT, getFont());
 			AttributedCharacterIterator aci = as.getIterator();
 			LineBreakMeasurer lbm = new LineBreakMeasurer(aci, gr
 					.getFontRenderContext());
-
 			while (lbm.getPosition() < aci.getEndIndex()) {
 				TextLayout textLayout = lbm.nextLayout(rwidth);
-				if (gr != null && isJustified()
-						&& textLayout.getVisibleAdvance() > 0.80 * rwidth) {
-					textLayout = textLayout.getJustifiedLayout(rwidth);
-				}
-				if (gr != null) {
-					textLayout.draw(gr, x, y + textLayout.getAscent());
-				}
-				y += textLayout.getDescent() + textLayout.getLeading()
-						+ textLayout.getAscent();
+				lines.add(textLayout);
+			}
 
+			if (!lines.isEmpty()) {
+				float blockHeight = 0;
+				for (TextLayout textLayout : lines)
+					blockHeight += textLayout.getDescent()
+							+ textLayout.getLeading()
+							+ textLayout.getAscent();
+
+				// vertically center the block when the widget is taller than the text
+				float height = (float) this.getBounds().getHeight();
+				float y = (float) rec.getY();// + margin.top;
+				if (blockHeight <= height)
+					y += (height - blockHeight) / 2;
+
+				// only draw whole lines; a last line that would be cut in the
+				// middle is left out instead of showing a truncated fragment
+				float bottomLimit = (float) rec.getY() + height;
+				for (TextLayout textLayout : lines) {
+					float lineHeight = textLayout.getDescent()
+							+ textLayout.getLeading()
+							+ textLayout.getAscent();
+					if (y + lineHeight > bottomLimit)
+						break;
+					if (gr != null && isJustified()
+							&& textLayout.getVisibleAdvance() > 0.80 * rwidth) {
+						textLayout = textLayout.getJustifiedLayout(rwidth);
+					}
+					if (gr != null) {
+						textLayout.draw(gr, x, y + textLayout.getAscent());
+					}
+					y += lineHeight;
+				}
 			}
 		}
 	}
