@@ -125,6 +125,110 @@ td.form-label-above-input.login-label .z-label,
 .workflow-panel-table {
 	border: 0px;
 }
+<%-- workflow activities outlook layout (flat 3-line rows like KI-Copilot, slim expandable control) --%>
+.wf-outlook .wf-west-layout {
+	height: 100%;
+}
+.wf-search-bar {
+	margin-bottom: 4px;
+}
+.wf-count-bar {
+	font-size: 12px;
+	color: #666;
+	margin: 2px 2px 6px 2px;
+}
+.wf-card-scroll {
+	border: 0;
+}
+.wf-card-list {
+	padding: 0;
+}
+.wf-activity-card {
+	border: 0;
+	border-bottom: 1px solid var(--input-border-color, #d9d9d9);
+	border-radius: 0;
+	background: transparent;
+	padding: 10px 12px;
+	margin: 0;
+	cursor: pointer;
+}
+.wf-activity-card:hover {
+	background: var(--button-hover-background-color, #f3f7fb);
+}
+.wf-activity-card.wf-card-selected {
+	background: var(--selected-background-color, #dceeff);
+}
+.wf-activity-card.wf-unread .wf-card-title,
+.wf-activity-card.wf-unread .wf-card-subject {
+	font-weight: 700;
+}
+.wf-card-top {
+	margin-bottom: 3px;
+}
+.wf-card-bottom {
+	margin-top: 3px;
+}
+.wf-card-title {
+	font-size: 13px;
+}
+.wf-card-subject {
+	font-size: 13px;
+	margin-top: 3px;
+}
+.wf-card-excerpt {
+	margin-top: 0;
+}
+.wf-card-date {
+	font-size: 11px;
+	color: #667085;
+	white-space: nowrap;
+	margin-left: 6px;
+}
+.wf-card-pill {
+	font-size: 10px;
+	margin-left: 6px;
+}
+.wf-grouping {
+	margin-bottom: 4px;
+}
+.wf-group-header {
+	padding: 8px 12px 4px 12px;
+	font-weight: bold;
+	font-size: 12px;
+	color: #344054;
+	background: #f2f4f7;
+	border-bottom: 1px solid var(--input-border-color, #d9d9d9);
+}
+.wf-doc-container {
+	border: 0;
+}
+.wf-doc-placeholder {
+	color: #666;
+}
+.wf-control-title {
+	font-size: 13px;
+}
+.wf-control-header {
+	margin-bottom: 2px;
+}
+.wf-details-toggle {
+	white-space: nowrap;
+}
+.wf-action-row > .z-cell {
+	padding-top: 2px !important;
+	padding-bottom: 2px !important;
+}
+.wf-action-bar > * {
+	margin-right: 4px;
+}
+.wf-action-bar > *:last-child {
+	margin-right: 0;
+}
+@media screen and (max-width: 900px) {
+	.wf-outlook .wf-west {
+		width: 260px !important;
+	}
+}
 
 <%-- payment form --%>
 .payment-form-content {
