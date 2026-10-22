@@ -290,6 +290,7 @@ public class MSysConfig extends X_AD_SysConfig
     public static final String ZK_MOBILE_PAGING_SIZE = "ZK_MOBILE_PAGING_SIZE";
     public static final String ZK_PAGING_DETAIL_SIZE = "ZK_PAGING_DETAIL_SIZE";
     public static final String ZK_PAGING_SIZE = "ZK_PAGING_SIZE";
+    public static final String ZK_PDF_JS_PRINT_RESOLUTION = "ZK_PDF_JS_PRINT_RESOLUTION";
     public static final String ZK_REPORT_FORM_OUTPUT_TYPE = "ZK_REPORT_FORM_OUTPUT_TYPE";
     public static final String ZK_REPORT_JASPER_OUTPUT_TYPE = "ZK_REPORT_JASPER_OUTPUT_TYPE";
     public static final String ZK_REPORT_ONLY_PRINTFORMAT_LINKEDTO_REPORTVIEW = "ZK_REPORT_ONLY_PRINTFORMAT_LINKEDTO_REPORTVIEW";
