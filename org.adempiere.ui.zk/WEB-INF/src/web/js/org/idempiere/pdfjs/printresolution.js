@@ -18,8 +18,8 @@
 	const MIN_PRINT_RESOLUTION = 72;
 	const MAX_PRINT_RESOLUTION = 600;
 
-	//	pdf.js lower cases the names of the hash parameters
-	const parameter = new URLSearchParams(document.location.hash.substring(1)).get('printresolution');
+	//	pdf.js lower cases the names of the hash parameters, so do the same for a hand written url
+	const parameter = new URLSearchParams(document.location.hash.substring(1).toLowerCase()).get('printresolution');
 	const requested = parseInt(parameter, 10);
 	if (!Number.isInteger(requested))
 		return;

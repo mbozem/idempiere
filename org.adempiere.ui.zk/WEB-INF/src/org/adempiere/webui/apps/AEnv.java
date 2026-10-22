@@ -1033,7 +1033,10 @@ public final class AEnv
 	 * Construct url to open pdfUrl with the embedded pdf.js viewer.
 	 * @param viewerUrl pdf.js viewer url, up to and including the file query parameter
 	 * @param pdfUrl url of the PDF document to open
-	 * @param printResolution raster resolution of the pdf.js print renderer in dpi
+	 * @param printResolution raster resolution of the pdf.js print renderer in dpi, values below
+	 * 	{@value #PDF_JS_MIN_PRINT_RESOLUTION} or above {@value #PDF_JS_MAX_PRINT_RESOLUTION} are
+	 * 	moved to the nearest bound. A value of zero or less is taken as "not configured", the
+	 * 	url is then built without the print resolution and pdf.js keeps its own default.
 	 * @return pdf.js viewer url
 	 */
 	public static String toPdfJsUrl(String viewerUrl, String pdfUrl, int printResolution) {
@@ -1041,7 +1044,8 @@ public final class AEnv
 		url.append(pdfUrl);
 		if (printResolution > 0 && printResolution != PDF_JS_DEFAULT_PRINT_RESOLUTION) {
 			//	pdf.js takes its viewer options from the document hash, and lower cases the parameter names there
-			url.append("#printresolution=").append(printResolution);
+			url.append("#printresolution=")
+					.append(Math.min(PDF_JS_MAX_PRINT_RESOLUTION, Math.max(PDF_JS_MIN_PRINT_RESOLUTION, printResolution)));
 		}
 		return url.toString();
 	}
@@ -1051,18 +1055,16 @@ public final class AEnv
 	 * 	pdf.js renders every page into a canvas before it hands it to the
 	 * 	browser, so a printout can not be sharper than that raster. Its default
 	 * 	of {@value #PDF_JS_DEFAULT_PRINT_RESOLUTION} dpi stays soft on a 300 dpi
-	 * 	printer, which is why it is configurable.
-	 *	@return the configured dpi, never outside
+	 * 	printer, which is why it is configurable. Values outside
 	 * 	{@value #PDF_JS_MIN_PRINT_RESOLUTION} to {@value #PDF_JS_MAX_PRINT_RESOLUTION}
+	 * 	are moved to the nearest bound by {@link #toPdfJsUrl(String, String, int)}.
+	 *	@return the configured dpi, or {@value #PDF_JS_DEFAULT_PRINT_RESOLUTION} if the
+	 * 	configuration is missing, empty, not a number or zero or less
 	 */
 	private static int getPdfJsPrintResolution() {
 		int dpi = MSysConfig.getIntValue(MSysConfig.ZK_PDF_JS_PRINT_RESOLUTION
 				, PDF_JS_DEFAULT_PRINT_RESOLUTION, Env.getAD_Client_ID(Env.getCtx()));
-		if (dpi < PDF_JS_MIN_PRINT_RESOLUTION)
-			return PDF_JS_MIN_PRINT_RESOLUTION;
-		if (dpi > PDF_JS_MAX_PRINT_RESOLUTION)
-			return PDF_JS_MAX_PRINT_RESOLUTION;
-		return dpi;
+		return dpi > 0 ? dpi : PDF_JS_DEFAULT_PRINT_RESOLUTION;
 	}
 
 	/**

@@ -37,9 +37,17 @@ public class PdfJsViewerUrlTest {
 	}
 
 	@Test
+	public void testPdfJsUrlPrintResolutionBounds() {
+		//	a resolution outside the supported range is moved to the nearest bound
+		assertEquals(VIEWER + PDF + "#printresolution=72", AEnv.toPdfJsUrl(VIEWER, PDF, 36));
+		assertEquals(VIEWER + PDF + "#printresolution=600", AEnv.toPdfJsUrl(VIEWER, PDF, 1200));
+	}
+
+	@Test
 	public void testPdfJsUrlWithoutPrintResolution() {
 		//	an unknown resolution must not change the url of the viewer
 		assertEquals(VIEWER + PDF, AEnv.toPdfJsUrl(VIEWER, PDF, -1));
+		assertEquals(VIEWER + PDF, AEnv.toPdfJsUrl(VIEWER, PDF, 0));
 	}
 
 }
