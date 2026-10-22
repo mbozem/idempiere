@@ -98,6 +98,15 @@ public final class AEnv
 {
 	/** Environment context attribute for Locale */
 	public static final String LOCALE = Env.LOCALE;
+
+	/** Raster resolution, in dpi, the pdf.js print renderer uses when {@link MSysConfig#ZK_PDF_JS_PRINT_RESOLUTION} is not set */
+	public static final int PDF_JS_DEFAULT_PRINT_RESOLUTION = 150;
+
+	/** Lowest print raster resolution, in dpi, {@link MSysConfig#ZK_PDF_JS_PRINT_RESOLUTION} is accepted as */
+	public static final int PDF_JS_MIN_PRINT_RESOLUTION = 72;
+
+	/** Highest print raster resolution, in dpi, {@link MSysConfig#ZK_PDF_JS_PRINT_RESOLUTION} is accepted as */
+	public static final int PDF_JS_MAX_PRINT_RESOLUTION = 600;
 	
 	/**
 	 *  Show window in the center of screen.
@@ -1017,9 +1026,43 @@ public final class AEnv
 		if (index >= 0) {
 			viewer = viewer.substring(index+1);
 		}
-		StringBuilder url = new StringBuilder(viewer);
+		return toPdfJsUrl(viewer, pdfUrl, getPdfJsPrintResolution());
+	}
+
+	/**
+	 * Construct url to open pdfUrl with the embedded pdf.js viewer.
+	 * @param viewerUrl pdf.js viewer url, up to and including the file query parameter
+	 * @param pdfUrl url of the PDF document to open
+	 * @param printResolution raster resolution of the pdf.js print renderer in dpi
+	 * @return pdf.js viewer url
+	 */
+	public static String toPdfJsUrl(String viewerUrl, String pdfUrl, int printResolution) {
+		StringBuilder url = new StringBuilder(viewerUrl);
 		url.append(pdfUrl);
+		if (printResolution > 0 && printResolution != PDF_JS_DEFAULT_PRINT_RESOLUTION) {
+			//	pdf.js takes its viewer options from the document hash, and lower cases the parameter names there
+			url.append("#printresolution=").append(printResolution);
+		}
 		return url.toString();
+	}
+
+	/**
+	 * 	Raster resolution the embedded pdf.js viewer should print with, in dpi.
+	 * 	pdf.js renders every page into a canvas before it hands it to the
+	 * 	browser, so a printout can not be sharper than that raster. Its default
+	 * 	of {@value #PDF_JS_DEFAULT_PRINT_RESOLUTION} dpi stays soft on a 300 dpi
+	 * 	printer, which is why it is configurable.
+	 *	@return the configured dpi, never outside
+	 * 	{@value #PDF_JS_MIN_PRINT_RESOLUTION} to {@value #PDF_JS_MAX_PRINT_RESOLUTION}
+	 */
+	private static int getPdfJsPrintResolution() {
+		int dpi = MSysConfig.getIntValue(MSysConfig.ZK_PDF_JS_PRINT_RESOLUTION
+				, PDF_JS_DEFAULT_PRINT_RESOLUTION, Env.getAD_Client_ID(Env.getCtx()));
+		if (dpi < PDF_JS_MIN_PRINT_RESOLUTION)
+			return PDF_JS_MIN_PRINT_RESOLUTION;
+		if (dpi > PDF_JS_MAX_PRINT_RESOLUTION)
+			return PDF_JS_MAX_PRINT_RESOLUTION;
+		return dpi;
 	}
 
 	/**
